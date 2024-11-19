@@ -6,3 +6,9 @@ CMakeFiles
 CMakeCache.txt
 cmake_install.cmake
 Makefile
+
+# Redis 
+dump.rdb
+
+# VSCode
+.vscode/
