@@ -1,5 +1,7 @@
-# Executable
+# Executables
 main
+tests/resp_tests
+tests/*.cmake
 
 # CMake
 CMakeFiles
