@@ -5,7 +5,11 @@ main
 CMakeFiles
 CMakeCache.txt
 cmake_install.cmake
+CTestTestfile.cmake
 Makefile
+src/CTestTestfile.cmake
+src/libresp_impl.a
+Testing/
 
 # Redis 
 dump.rdb

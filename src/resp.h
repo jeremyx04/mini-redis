@@ -1,3 +1,6 @@
+#ifndef RESP_H
+#define RESP_H
+
 #include <memory>
 #include <string>
 #include <variant>
@@ -46,3 +49,5 @@ class Array : public RType {
   }
   std::string serialize() override;
 };
+
+#endif
