@@ -6,6 +6,6 @@ int main(int argc, char **argv) {
     Server server(6379);
     server.start();
   } catch(const std::exception& e) {
-    std::cerr << "An error occurred: " << e.what() << '\n';
+    std::cerr << "an error occurred: " << e.what() << '\n';
   }
 }

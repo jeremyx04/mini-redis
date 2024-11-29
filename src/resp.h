@@ -18,6 +18,9 @@ class SimpleString : public RType {
  public:
   SimpleString(const std::string& str) : str{str} {}
   std::string serialize() override;
+  const std::string& get_str() const {
+    return str;
+  }
 };
 
 class Error : public RType {
@@ -25,6 +28,9 @@ class Error : public RType {
  public:
   Error(const std::string& str) : str{str} {}
   std::string serialize() override;
+  const std::string& get_str() const {
+    return str;
+  }
 };
 
 class BulkString : public RType {
@@ -32,6 +38,9 @@ class BulkString : public RType {
  public:
   BulkString(const std::string& str) : str{str} {}
   std::string serialize() override;
+  const std::string& get_str() const {
+    return str;
+  }
 };
 
 class Integer : public RType {
@@ -39,6 +48,9 @@ class Integer : public RType {
  public:
   Integer(int val) : val{val} {}
   std::string serialize() override;
+  const int get_val() const {
+    return val;
+  }
 };
 
 class Array : public RType {
@@ -49,6 +61,9 @@ class Array : public RType {
     for(auto &p : init) lst.push_back(std::move(p));
   }
   std::string serialize() override;
+  const std::vector<std::unique_ptr<RType>>& get_lst() const {
+    return lst;
+  }
 };
 
 #endif
