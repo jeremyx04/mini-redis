@@ -9,6 +9,8 @@ class RType {
  public:
   virtual std::string serialize() = 0;
   virtual ~RType() = default;
+  
+  static std::unique_ptr<RType> deserialize(const std::string& str);
 };
 
 class SimpleString : public RType {
@@ -26,7 +28,7 @@ class Error : public RType {
 };
 
 class BulkString : public RType {
-  std::string str; 
+  std::string str;
  public:
   BulkString(const std::string& str) : str{str} {}
   std::string serialize() override;
