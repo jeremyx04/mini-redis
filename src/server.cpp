@@ -8,7 +8,7 @@
 
 std::unique_ptr<RType> Server::handle_request(const std::string &req) {
   std::unique_ptr<RType> resp = RType::deserialize(req);
-  // expect request to be an array 
+
   Array* arr = dynamic_cast<Array*>(resp.get());
   if(!arr) return std::make_unique<Error>("non-array request received");
 
@@ -16,25 +16,46 @@ std::unique_ptr<RType> Server::handle_request(const std::string &req) {
   if(lst.empty()) return std::make_unique<Error>("empty request received");
 
   BulkString* command = dynamic_cast<BulkString*>(lst[0].get());
-  if(!command) return std::make_unique<Error>("expected bulk string");
+  if(!command) return std::make_unique<Error>("non-bulk string command received");
   std::string command_string = command->get_str();
+  return handle_command(command_string, lst);
+}
 
-  if(command_string == "PING") {
-    if(lst.size() == 1) {
+std::unique_ptr<RType> Server::handle_command(
+    const std::string &command, 
+    const std::vector<std::unique_ptr<RType>> &args
+) {
+  size_t num_args = args.size() - 1;
+  if(command == "PING") {
+    if(num_args == 0) {
       return std::make_unique<SimpleString>("PONG");
     } else {
-      if(lst.size() != 2) return std::make_unique<Error>("wrong number of arguments for 'ping' command");
-      BulkString* message = dynamic_cast<BulkString*>(lst[1].get());
-      if(!message) return std::make_unique<Error>("expected bulk string");
+      if(num_args > 1) return std::make_unique<Error>("wrong number of arguments for 'ping' command");
+      BulkString* message = dynamic_cast<BulkString*>(args[1].get());
+      if(!message) return std::make_unique<Error>("missing message");
       return std::make_unique<SimpleString>(message->get_str());
     }
-  } else if(command_string == "ECHO") {
-    if(lst.size() != 2) return std::make_unique<Error>("wrong number of arguments for 'echo' command");
-    BulkString* message = dynamic_cast<BulkString*>(lst[1].get());
-    if(!message) return std::make_unique<Error>("expected bulk string");
+  } else if(command == "ECHO") {
+    if(num_args > 1) return std::make_unique<Error>("wrong number of arguments for 'echo' command");
+    BulkString* message = dynamic_cast<BulkString*>(args[1].get());
+    if(!message) return std::make_unique<Error>("missing message");
     return std::make_unique<SimpleString>(message->get_str());
+  } else if(command == "SET") {
+    if(num_args > 2) return std::make_unique<Error>("wrong number of arguments for 'set' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get()), *val = dynamic_cast<BulkString*>(args[2].get());
+    if(!key || !val) return std::make_unique<Error>("missing key/value");
+    data_store->set(key->get_str(), val->get_str());
+    return std::make_unique<SimpleString>("OK");
+  } else if(command == "GET") {
+    if(num_args > 1) return std::make_unique<Error>("wrong number of arguments for 'get' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+    std::string val;
+    data_store->get(key->get_str(), val);
+    if(val.empty()) return std::make_unique<Error>("1");
+    return std::make_unique<SimpleString>(val);
   } else {
-    return std::make_unique<Error>("unrecognized request");
+    return std::make_unique<Error>(std::string("unrecognized command " + command));
   }
 }
 
@@ -83,6 +104,7 @@ void Server::start() {
   if(listen(server_fd, backlog) < 0) {
     throw std::runtime_error("server listen failed");
   }
+  data_store = new Store();
   listening = true;
   while(listening) {
     sockaddr_in client_addr;

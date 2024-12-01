@@ -60,7 +60,7 @@ std::unique_ptr<RType> RType::deserialize(const std::string &str) {
           throw std::invalid_argument("invalid array");
       }
       int n = std::stoi(str.substr(1, pos-1));
-      std::vector<std::unique_ptr<RType>>lst;
+      std::vector<std::unique_ptr<RType>> lst;
       size_t start = pos + 2;  
       for (int i = 0; i < n; i++) {
           // bulk strings have 2 \r\n instances...
