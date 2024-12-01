@@ -7,5 +7,5 @@ Run the build script to compile the project: `./build.sh` \
 Run `./main` to start the server
 
 ### Tests
-Tests are integrated using Catch2. To run tests, build the project as above, and run `ctest --output-on-failure`.
+Tests are integrated using Catch2. To run tests, build the project as above, and run `ctest --output-on-failure`
 

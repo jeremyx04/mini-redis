@@ -31,6 +31,42 @@ std::string trim(const std::string &str) {
     return res;
 }
 
+// helper fn to deserialize array types
+// pass current index in str to iteratively scan through nested arrays
+std::unique_ptr<RType> deserialize_array(const std::string &str, int &index) {
+  assert(str[index] == '*');
+  ++index; // skip the first * character
+
+  size_t pos = str.find("\r\n", index);
+  if(pos == std::string::npos) throw std::invalid_argument("invalid array");
+  int num_elements = std::stoi(str.substr(index, pos-1));
+  int cur_elements = 0;
+  std::vector<std::unique_ptr<RType>> lst;
+  // fill in the array with the correct number of elements
+  // index should not go over size but... sanity check
+  while(cur_elements < num_elements && index < str.size()) {
+    if(str[index] == '+' || str[index] == '-' || str[index] == ':') {
+      size_t end = str.find("\r\n", index+1);
+      if(end == std::string::npos) throw std::invalid_argument("invalid array element");
+      std::string element = str.substr(index, end-index);
+      lst.push_back(RType::deserialize(element));
+      ++cur_elements;
+    } else if(str[index] == '$') {
+      size_t end = str.find("\r\n", index+1);
+      end = str.find("\r\n", end+1);
+      if(end == std::string::npos) throw std::invalid_argument("invalid array element");
+      std::string element = str.substr(index, end-index);
+      lst.push_back(RType::deserialize(element));
+      ++cur_elements;
+    } else if(str[index] == '*') {
+      lst.push_back(deserialize_array(str, index));
+      ++cur_elements;
+    }
+    ++index;
+  }
+  return std::make_unique<Array>(lst);
+}
+
 std::unique_ptr<RType> RType::deserialize(const std::string &str) {
   if (str.size() == 0) return std::unique_ptr<RType>(nullptr);
   char type = str[0];
@@ -43,9 +79,7 @@ std::unique_ptr<RType> RType::deserialize(const std::string &str) {
     }
     case '$': {
       size_t pos = str.find("\r\n", 1);
-      if(pos == std::string::npos) {
-        throw std::invalid_argument("invalid bulk string");
-      }
+      if(pos == std::string::npos) throw std::invalid_argument("invalid bulk string");
       int len = std::stoi(str.substr(1, pos-1));
       std::string bulk_str = str.substr(pos+2, len);
       return std::make_unique<BulkString>(trim(bulk_str));
@@ -55,31 +89,8 @@ std::unique_ptr<RType> RType::deserialize(const std::string &str) {
       return std::make_unique<Integer>(val);
     }
     case '*': {
-      size_t pos = str.find("\r\n", 1);
-      if(pos == std::string::npos) {
-          throw std::invalid_argument("invalid array");
-      }
-      int n = std::stoi(str.substr(1, pos-1));
-      std::vector<std::unique_ptr<RType>> lst;
-      size_t start = pos + 2;  
-      for (int i = 0; i < n; i++) {
-          // bulk strings have 2 \r\n instances...
-          size_t end = str.find("\r\n", start);
-          if(end == std::string::npos) {
-              throw std::invalid_argument("invalid array element");
-          }
-          bool is_bulk_string = str[start] == '$';
-          if(is_bulk_string) {
-            end = str.find("\r\n", end + 2);
-            if(end == std::string::npos) {
-              throw std::invalid_argument("invalid bulk string element in array");
-            }
-          }
-          std::string element = str.substr(start, end - start);
-          lst.push_back(RType::deserialize(element));
-          start = end + 2; 
-      }
-      return std::make_unique<Array>(lst);
+      int index = 0;
+      return deserialize_array(str, index);
     }
     default:
       throw std::invalid_argument("unrecognized RESP format");
