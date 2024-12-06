@@ -18,6 +18,7 @@ std::unique_ptr<RType> Server::handle_request(const std::string &req) {
   BulkString* command = dynamic_cast<BulkString*>(lst[0].get());
   if(!command) return std::make_unique<Error>("non-bulk string command received");
   std::string command_string = command->get_str();
+  std::transform(command_string.begin(), command_string.end(), command_string.begin(), ::toupper);
   return handle_command(command_string, lst);
 }
 
