@@ -44,7 +44,10 @@ std::unique_ptr<RType> Server::handle_command(
   } else if(command == "SET") {
     if(num_args > 2) return std::make_unique<Error>("wrong number of arguments for 'set' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get()), *val = dynamic_cast<BulkString*>(args[2].get());
-    if(!key || !val) return std::make_unique<Error>("missing key/value");
+    if(!key) return std::make_unique<Error>("missing key");
+    if(!val) {
+      return std::make_unique<Error>("missing value");
+    }
     data_store->set(key->get_str(), val->get_str());
     return std::make_unique<SimpleString>("OK");
   } else if(command == "GET") {
@@ -80,6 +83,7 @@ void Server::handle_client(int client_fd) {
     }
   }
 }
+
 Server::Server(int port) : port(port), listening(false) {
   server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if(server_fd < 0) {
@@ -107,19 +111,20 @@ void Server::start() {
   }
   data_store = new Store();
   listening = true;
+  std::vector<std::thread> client_threads;
+
   while(listening) {
     sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
-    // accept client connection
     int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_addr_len);
     if(client_fd < 0) {
-      if(listening) {
-        std::cerr << "failed to accept client connection\n";
-      }
+      std::cerr << "failed to accept client connection\n";
       continue;
     }
-    handle_client(client_fd);
-    close(client_fd);
+    client_threads.emplace_back(std::thread(&Server::handle_client, this, client_fd));
+  }
+  for (auto& t : client_threads) {
+    if (t.joinable()) t.join();
   }
 }
 

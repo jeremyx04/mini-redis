@@ -39,7 +39,12 @@ std::unique_ptr<RType> deserialize_array(const std::string &str, int &index) {
 
   size_t pos = str.find("\r\n", index);
   if(pos == std::string::npos) throw std::invalid_argument("invalid array");
-  int num_elements = std::stoi(str.substr(index, pos-1));
+  int num_elements;
+  try {
+    num_elements = std::stoi(str.substr(index, pos-1));
+  } catch (...) {
+    throw std::invalid_argument("invalid array length");
+  }
   int cur_elements = 0;
   std::vector<std::unique_ptr<RType>> lst;
   // fill in the array with the correct number of elements
@@ -58,6 +63,7 @@ std::unique_ptr<RType> deserialize_array(const std::string &str, int &index) {
       std::string element = str.substr(index, end-index);
       lst.push_back(RType::deserialize(element));
       ++cur_elements;
+      index = end;
     } else if(str[index] == '*') {
       lst.push_back(deserialize_array(str, index));
       ++cur_elements;
@@ -80,13 +86,22 @@ std::unique_ptr<RType> RType::deserialize(const std::string &str) {
     case '$': {
       size_t pos = str.find("\r\n", 1);
       if(pos == std::string::npos) throw std::invalid_argument("invalid bulk string");
-      int len = std::stoi(str.substr(1, pos-1));
+      int len;
+      try {
+        len = std::stoi(str.substr(1, pos-1));
+      } catch (...) {
+        throw std::invalid_argument("invalid bulk string length");
+      }
       std::string bulk_str = str.substr(pos+2, len);
       return std::make_unique<BulkString>(trim(bulk_str));
     }
     case ':': {
-      int val = std::stoi(str.substr(1));
-      return std::make_unique<Integer>(val);
+      try {
+        int val = std::stoi(str.substr(1));
+        return std::make_unique<Integer>(val);
+      } catch (...) {
+        throw std::invalid_argument("invalid integer");
+      }
     }
     case '*': {
       int index = 0;
