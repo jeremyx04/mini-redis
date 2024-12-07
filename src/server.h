@@ -3,6 +3,7 @@
 
 #include "resp.h"
 #include "store.h"
+#include "threadpool.h"
 #include <string>
 
 constexpr int BUFFER_SIZE = 1024;
@@ -11,6 +12,7 @@ class Server {
   int port, server_fd;
   bool listening;
   Store* data_store;
+  ThreadPool thread_pool;
 
   void handle_client(int client_fd);
   std::unique_ptr<RType> handle_request(const std::string &req);

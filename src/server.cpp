@@ -84,7 +84,7 @@ void Server::handle_client(int client_fd) {
   }
 }
 
-Server::Server(int port) : port(port), listening(false) {
+Server::Server(int port) : port(port), listening(false), thread_pool(50) {
   server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if(server_fd < 0) {
     throw std::runtime_error("socket creation failed");
@@ -111,7 +111,6 @@ void Server::start() {
   }
   data_store = new Store();
   listening = true;
-  std::vector<std::thread> client_threads;
 
   while(listening) {
     sockaddr_in client_addr;
@@ -121,10 +120,9 @@ void Server::start() {
       std::cerr << "failed to accept client connection\n";
       continue;
     }
-    client_threads.emplace_back(std::thread(&Server::handle_client, this, client_fd));
-  }
-  for (auto& t : client_threads) {
-    if (t.joinable()) t.join();
+    thread_pool.enqueue([this, client_fd] {
+          handle_client(client_fd);
+    });
   }
 }
 
