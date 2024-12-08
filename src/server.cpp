@@ -105,8 +105,7 @@ Server::~Server() {
 }
 
 void Server::start() {
-  int backlog = 5;
-  if(listen(server_fd, backlog) < 0) {
+  if(listen(server_fd, SOMAXCONN) < 0) {
     throw std::runtime_error("server listen failed");
   }
   data_store = new Store();
@@ -122,6 +121,7 @@ void Server::start() {
     }
     thread_pool.enqueue([this, client_fd] {
           handle_client(client_fd);
+          close(client_fd);
     });
   }
 }

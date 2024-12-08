@@ -12,7 +12,7 @@ class ThreadPool {
   std::queue<std::function<void()>> jobs;
   std::mutex queue_mutex;
   std::condition_variable cv;
-  bool stop = false;
+  bool stop;
  public:
   ThreadPool(int num_threads);
   ~ThreadPool();
