@@ -5,17 +5,17 @@ ThreadPool::ThreadPool(int num_threads) : stop(false) {
   for(int i = 0; i < num_threads; ++i) {
     workers.emplace_back([this] {
       while(true) {
-        std::function<void()> job;
+        std::function<void()> task;
         {
           std::unique_lock<std::mutex> lock(queue_mutex);
           cv.wait(lock, [this] {
-            return !jobs.empty() || stop; 
+            return !tasks.empty() || stop; 
           });
-          if(jobs.empty() && stop) return;
-          job = std::move(jobs.front());
-          jobs.pop();
+          if(tasks.empty() && stop) return;
+          task = std::move(tasks.front());
+          tasks.pop();
         }
-        job();
+        task();
       }
     });
   }
@@ -30,12 +30,4 @@ ThreadPool::~ThreadPool() {
   for(auto& w : workers) {
     if(w.joinable()) w.join();
   }
-}
-
-void ThreadPool::enqueue(std::function<void()> job) {
-  {
-    std::unique_lock<std::mutex> lock(queue_mutex);
-    jobs.emplace(job);
-  }
-  cv.notify_one();
 }

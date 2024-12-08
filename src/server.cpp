@@ -72,7 +72,6 @@ void Server::handle_client(int client_fd) {
       std::cerr << "failed to receive bytes from client\n";
       break;
     } else if(bytes_received == 0) {
-      std::cout << "client disconnected\n";
       break;
     } else {
       buffer[BUFFER_SIZE-1] = '\0';
@@ -120,8 +119,9 @@ void Server::start() {
       continue;
     }
     thread_pool.enqueue([this, client_fd] {
-          handle_client(client_fd);
-          close(client_fd);
+        handle_client(client_fd);
+        close(client_fd);
+        std::cout << "client disconnected\n";
     });
   }
 }
