@@ -1,4 +1,5 @@
 #include "server.h"
+#include <ctime>
 #include <netinet/in.h>
 #include <stdexcept>
 #include <string>
@@ -28,36 +29,76 @@ std::unique_ptr<RType> Server::handle_command(
 ) {
   size_t num_args = args.size() - 1;
   if(command == "PING") {
-    if(num_args == 0) {
-      return std::make_unique<SimpleString>("PONG");
-    } else {
-      if(num_args > 1) return std::make_unique<Error>("wrong number of arguments for 'ping' command");
-      BulkString* message = dynamic_cast<BulkString*>(args[1].get());
-      if(!message) return std::make_unique<Error>("missing message");
-      return std::make_unique<SimpleString>(message->get_str());
-    }
-  } else if(command == "ECHO") {
-    if(num_args > 1) return std::make_unique<Error>("wrong number of arguments for 'echo' command");
+    if(num_args == 0) return std::make_unique<SimpleString>("PONG"); 
+    if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'ping' command");
     BulkString* message = dynamic_cast<BulkString*>(args[1].get());
     if(!message) return std::make_unique<Error>("missing message");
+
+    return std::make_unique<SimpleString>(message->get_str());
+  } else if(command == "ECHO") {
+    if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'echo' command");
+    BulkString* message = dynamic_cast<BulkString*>(args[1].get());
+    if(!message) return std::make_unique<Error>("missing message");
+
     return std::make_unique<SimpleString>(message->get_str());
   } else if(command == "SET") {
-    if(num_args > 2) return std::make_unique<Error>("wrong number of arguments for 'set' command");
+    if(num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'set' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get()), *val = dynamic_cast<BulkString*>(args[2].get());
     if(!key) return std::make_unique<Error>("missing key");
-    if(!val) {
-      return std::make_unique<Error>("missing value");
-    }
+    if(!val) return std::make_unique<Error>("missing value");
+
     data_store->set(key->get_str(), val->get_str());
     return std::make_unique<SimpleString>("OK");
   } else if(command == "GET") {
-    if(num_args > 1) return std::make_unique<Error>("wrong number of arguments for 'get' command");
+    if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'get' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
     if(!key) return std::make_unique<Error>("missing key");
-    std::string val;
-    data_store->get(key->get_str(), val);
+    
+    std::string val = data_store->get(key->get_str());
     if(val.empty()) return std::make_unique<Error>("1");
     return std::make_unique<SimpleString>(val);
+  } else if(command == "DEL") {
+    if(num_args == 0) return std::make_unique<Error>("no arguments received for 'del' command");
+    int num_deleted = 0;
+    for(int i = 1; i <= num_args; ++i) {
+      BulkString *key = dynamic_cast<BulkString*>(args[i].get());
+      if(!key) return std::make_unique<Error>("missing key");
+      num_deleted += data_store->del(key->get_str());
+    }
+    return std::make_unique<Integer>(num_deleted);
+  } else if(command == "EXPIRE") {
+    if(num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'expire' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    BulkString *seconds = dynamic_cast<BulkString*>(args[2].get());
+    if(!key) return std::make_unique<Error>("missing key");
+    if(!seconds) return std::make_unique<Error>("missing seconds");
+    int seconds_int;
+    try {
+      seconds_int = std::stoi(seconds->get_str());
+    } catch (...) {
+      throw std::runtime_error("expected an integer for seconds");
+    }
+    std::time_t expiry_epoch = std::time(nullptr) + static_cast<std::time_t>(seconds_int);
+    int res = data_store->set_expire(key->get_str(), expiry_epoch);
+    return std::make_unique<Integer>(res);
+  } else if(command == "TTL") {
+    if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'ttl' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+    
+    int ret;
+    if(!data_store->exists(key->get_str())) {
+      ret = -2;
+    } else {
+      std::time_t timeout = data_store->get_timeout(key->get_str());
+      if(timeout == std::numeric_limits<std::time_t>::max()) {
+        ret = -1;
+      } else {
+        // assumes that timeout > current time
+        ret = (int) std::difftime(timeout, std::time(nullptr));
+      }
+    }
+    return std::make_unique<Integer>(ret);
   } else {
     return std::make_unique<Error>(std::string("unrecognized command " + command));
   }
@@ -89,13 +130,20 @@ Server::Server(int port) : port(port), listening(false), thread_pool(50) {
     throw std::runtime_error("socket creation failed");
   }
 
+  const int enable = 1;
+  if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+    throw std::runtime_error("set reuse address option failed");
+  if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0)
+    throw std::runtime_error("set reuse port option failed");
+
   sockaddr_in server_addr;
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = INADDR_ANY;
   server_addr.sin_port = htons(port);
 
   if(bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-    throw std::runtime_error("failed to bind to port " + std::to_string(port));
+    std::string error_msg = "failed to bind to port " + std::to_string(port) + ": " + strerror(errno);
+    throw std::runtime_error(error_msg);
   }
 }
 

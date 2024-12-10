@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+// RESP data type 
 class RType {
  public:
   virtual std::string serialize() = 0;
