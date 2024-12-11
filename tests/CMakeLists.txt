@@ -11,9 +11,9 @@ else()
     FetchContent_MakeAvailable(Catch2)
 endif()
 
-add_executable(resp_tests resp.test.cpp)
+add_executable(redis_tests redis.test.cpp)
 
-target_link_libraries(resp_tests PRIVATE Catch2::Catch2WithMain resp_impl)
+target_link_libraries(redis_tests PRIVATE Catch2::Catch2WithMain resp_impl store_impl redis_impl)
 
 include(Catch)  
-catch_discover_tests(resp_tests)
+catch_discover_tests(redis_tests)

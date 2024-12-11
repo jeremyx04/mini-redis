@@ -1,7 +1,9 @@
+#ifndef CATCH_CONFIG_MAIN
 #define CATCH_CONFIG_MAIN
+
 #include <catch2/catch_all.hpp>
+#include "../src/redisengine.h"
 #include "../src/resp.h"
-#include <memory>
 
 TEST_CASE("Math works!") {
     REQUIRE(2+2 == 4); 
@@ -85,3 +87,13 @@ TEST_CASE("Deserialize Array", "[RESP]") {
     
     REQUIRE(nested_deserialized->serialize() == nested_expect->serialize());
 }
+
+TEST_CASE("PING command returns PONG", "[redis]") {
+    RedisEngine redis = RedisEngine();
+    std::string request = "*1$4\r\nPING\r\n";
+    auto response = redis.handle_request(request);
+    REQUIRE(dynamic_cast<SimpleString*>(response.get())->get_str() == "PONG");
+}
+
+#endif
+

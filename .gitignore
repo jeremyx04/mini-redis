@@ -10,7 +10,10 @@ cmake_install.cmake
 CTestTestfile.cmake
 Makefile
 src/CTestTestfile.cmake
+src/libredis_impl.a
 src/libresp_impl.a
+src/libserver_impl.a
+src/libstore_impl.a
 Testing/
 
 # Redis 
