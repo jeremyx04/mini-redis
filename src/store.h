@@ -2,9 +2,7 @@
 #define STORE_H
 
 #include <string>
-#include <limits>
 #include <unordered_map>
-
 
 struct Value {
   std::string val;
@@ -16,12 +14,8 @@ class Store {
  public:
   // Returns true if specified key exists, false otherwise
   bool exists(const std::string &key);
-  // Set key to value, optionally with a timeout
-  void set(
-    const std::string &key, 
-    const std::string &val,
-    const std::time_t expiry_epoch = std::numeric_limits<std::time_t>::max()
-  );
+  // Set key to value
+  void set(const std::string &key, const std::string &val);
   // Get value at the specified key and returns it if it exists
   std::string get(const std::string &key);
   // Get timeout at the specified key and returns it if it exists

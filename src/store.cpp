@@ -1,4 +1,5 @@
 #include "store.h"
+#include <limits>
 
 bool Store::exists(const std::string &key) {
   auto it = data.find(key);
@@ -10,9 +11,8 @@ bool Store::exists(const std::string &key) {
   return true;
 }
 
-void Store::set(const std::string &key, const std::string &val, const std::time_t expiry_epoch)
-{
-  data[key] = { val, expiry_epoch };
+void Store::set(const std::string &key, const std::string &val) {
+  data[key] = { val, std::numeric_limits<std::time_t>::max() };
 }
 
 std::string Store::get(const std::string &key) {

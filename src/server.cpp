@@ -42,12 +42,42 @@ std::unique_ptr<RType> Server::handle_command(
 
     return std::make_unique<SimpleString>(message->get_str());
   } else if(command == "SET") {
-    if(num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'set' command");
+    if(num_args < 2) return std::make_unique<Error>("wrong number of arguments for 'set' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get()), *val = dynamic_cast<BulkString*>(args[2].get());
     if(!key) return std::make_unique<Error>("missing key");
     if(!val) return std::make_unique<Error>("missing value");
 
-    data_store->set(key->get_str(), val->get_str());
+    std::string key_str = key->get_str();
+    data_store->set(key_str, val->get_str());
+
+    if(num_args > 2) {
+      if(num_args == 3) return std::make_unique<Error>("wrong number of arguments for 'set' command");
+      BulkString *config = dynamic_cast<BulkString*>(args[3].get()), *time = dynamic_cast<BulkString*>(args[4].get());
+      if(!config) return std::make_unique<Error>("missing config");
+      if(!time) return std::make_unique<Error>("missing time");
+      int time_int;
+      try {
+        time_int = std::stoi(time->get_str());
+      } catch (...) {
+        throw std::runtime_error("expected an integer for time");
+      }
+      std::string config_str = config->get_str();
+      if(config_str == "EX") {
+        std::time_t expiry_epoch = std::time(nullptr) + static_cast<std::time_t>(time_int);
+        data_store->set_expire(key_str, expiry_epoch);
+      } else if(config_str == "PX") {
+        std::time_t expiry_epoch = std::time(nullptr) + static_cast<std::time_t>(time_int / 1000);
+        data_store->set_expire(key_str, expiry_epoch);
+      } else if(config_str == "EXAT") {
+        std::time_t expiry_epoch = static_cast<std::time_t>(time_int);
+        data_store->set_expire(key_str, expiry_epoch);
+      } else if(config_str == "PXAT") {
+        std::time_t expiry_epoch = static_cast<std::time_t>(time_int / 1000);
+        data_store->set_expire(key_str, expiry_epoch);
+      } else {
+        return std::make_unique<Error>("invalid config for 'set' command");
+      }
+    }
     return std::make_unique<SimpleString>("OK");
   } else if(command == "GET") {
     if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'get' command");
