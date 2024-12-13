@@ -1,6 +1,7 @@
 #ifndef STORE_H
 #define STORE_H
 
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 
@@ -11,6 +12,7 @@ struct Value {
 
 class Store {
   std::unordered_map<std::string, Value> data;
+  std::shared_mutex data_mutex;
  public:
   // Returns true if specified key exists, false otherwise
   bool exists(const std::string &key);

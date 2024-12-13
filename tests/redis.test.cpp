@@ -4,6 +4,7 @@
 #include <catch2/catch_all.hpp>
 #include "../src/redisengine.h"
 #include "../src/resp.h"
+#include <thread>
 
 TEST_CASE("Math works!") {
     REQUIRE(2+2 == 4); 
@@ -95,5 +96,50 @@ TEST_CASE("PING command returns PONG", "[redis]") {
     REQUIRE(dynamic_cast<SimpleString*>(response.get())->get_str() == "PONG");
 }
 
+TEST_CASE("SET/GET commands work correctly", "[redis]") {
+    RedisEngine redis = RedisEngine();
+
+    std::string set_request = "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n";
+    auto set_response = redis.handle_request(set_request);
+    REQUIRE(dynamic_cast<SimpleString*>(set_response.get())->get_str() == "OK");
+
+    std::string get_request = "*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n";
+    auto get_response = redis.handle_request(get_request);
+    REQUIRE(dynamic_cast<SimpleString*>(get_response.get())->get_str() == "value");
+}
+
+TEST_CASE("Concurrent SET/GET", "[redis][concurrency]") {
+    RedisEngine redis = RedisEngine();
+    int num_threads = 10;
+    std::vector<std::thread> threads;
+    std::vector<std::string> res(num_threads);
+
+    std::string set_request = "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n";
+    std::string get_request = "*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n";
+
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([&, i]() {
+            if (i % 2 == 0) {
+                auto response = redis.handle_request(set_request);
+                res[i] = dynamic_cast<SimpleString*>(response.get())->get_str();
+            } else {
+                auto response = redis.handle_request(get_request);
+                res[i] = dynamic_cast<SimpleString*>(response.get())->get_str();
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    for (int i = 0; i < num_threads; ++i) {
+        if (i % 2 == 0) {
+            REQUIRE(res[i] == "OK");
+        } else {
+            REQUIRE(res[i] == "value");
+        }
+    }
+}
 #endif
 
