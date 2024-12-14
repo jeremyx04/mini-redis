@@ -44,6 +44,7 @@ std::string Store::get(const std::string &key) {
   return ret;
 }
 
+
 std::time_t Store::get_timeout(const std::string &key) {
   bool remove_flag = false;
   std::time_t ret;
@@ -78,4 +79,27 @@ int Store::set_expire(const std::string &key, const std::time_t expiry_epoch) {
   } 
   val.expiry_epoch = expiry_epoch;
   return 1;
+}
+
+std::string Store::incr(const std::string &key, const int add) {
+  if(!exists(key)) {
+    std::string val = std::to_string(add);
+    set(key, val);
+    return val;
+  }
+  std::unique_lock<std::shared_mutex> lock(data_mutex);
+  auto &val = data.at(key);
+  if(val.expiry_epoch <= std::time(nullptr)) {
+    std::string val = std::to_string(add);
+    data[key].val = val;
+    return val;
+  }
+  int val_int;
+  try {
+    val_int = std::stoi(val.val);
+  } catch (...) {
+    return "error";
+  }
+  val.val = std::to_string(val_int + add);
+  return val.val;
 }

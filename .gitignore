@@ -15,6 +15,7 @@ src/libresp_impl.a
 src/libserver_impl.a
 src/libstore_impl.a
 Testing/
+tests/redis_tests
 
 # Redis 
 dump.rdb

@@ -108,38 +108,41 @@ TEST_CASE("SET/GET commands work correctly", "[redis]") {
     REQUIRE(dynamic_cast<SimpleString*>(get_response.get())->get_str() == "value");
 }
 
-TEST_CASE("Concurrent SET/GET", "[redis][concurrency]") {
+TEST_CASE("Multithreaded INCR works correctly", "[redis]") {
     RedisEngine redis = RedisEngine();
-    int num_threads = 10;
+
+    const int num_threads = 10; 
+    const int num_operations = 100; 
+    const std::string key = "key";
+
+    std::string init_request = "*3\r\n$3\r\nSET\r\n$" +
+                std::to_string(key.size()) + "\r\n" + key +
+                "\r\n$1" + "\r\n" + "0" + "\r\n";
+    auto init_response = redis.handle_request(init_request);
+    REQUIRE(dynamic_cast<SimpleString*>(init_response.get())->get_str() == "OK");
+
+    auto thread_function = [&](int thread_id) {
+        for (int i = 0; i < num_operations; ++i) {
+            std::string incr_request = "*2\r\n$4\r\nINCR\r\n$" + std::to_string(key.size()) + "\r\n" + key + "\r\n";
+            auto incr_response = redis.handle_request(incr_request);
+            REQUIRE(dynamic_cast<Integer*>(incr_response.get())->get_val() >= 0);
+        }
+    };
+
     std::vector<std::thread> threads;
-    std::vector<std::string> res(num_threads);
-
-    std::string set_request = "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n";
-    std::string get_request = "*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n";
-
     for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&, i]() {
-            if (i % 2 == 0) {
-                auto response = redis.handle_request(set_request);
-                res[i] = dynamic_cast<SimpleString*>(response.get())->get_str();
-            } else {
-                auto response = redis.handle_request(get_request);
-                res[i] = dynamic_cast<SimpleString*>(response.get())->get_str();
-            }
-        });
+        threads.emplace_back(thread_function, i);
     }
 
-    for (auto& thread : threads) {
+    for (auto &thread : threads) {
         thread.join();
     }
 
-    for (int i = 0; i < num_threads; ++i) {
-        if (i % 2 == 0) {
-            REQUIRE(res[i] == "OK");
-        } else {
-            REQUIRE(res[i] == "value");
-        }
-    }
+    std::string get_request = "*3\r\n$3\r\nGET\r\n$" +
+                std::to_string(key.size()) + "\r\n" + key + "\r\n";
+    auto get_response = redis.handle_request(get_request);
+    REQUIRE(dynamic_cast<SimpleString*>(get_response.get())->get_str() == "1000");
 }
+
 #endif
 

@@ -26,6 +26,9 @@ class Store {
   int del(const std::string &key);
   // Set the specified key to timeout
   int set_expire(const std::string &key, const std::time_t expiry_epoch);
+  // Increment the value at key by add, returns the result as a base 10 integer
+  // or "error" if the value is not an integer
+  std::string incr(const std::string &key, int add);
 };
 
 #endif

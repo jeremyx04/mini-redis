@@ -124,9 +124,72 @@ std::unique_ptr<RType> RedisEngine::handle_command(
       }
     }
     return std::make_unique<Integer>(ret);
+  } else if(command == "INCR") {
+    if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'incr' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+    std::string res = data_store->incr(key->get_str(), 1);
+    if(res.empty()) {
+      return std::make_unique<Error>("no value at given key");
+    } else if(res == "error") {
+      return std::make_unique<Error>("value at given key is not an integer");
+    } else {
+      return std::make_unique<Integer>(std::stoi(res));
+    }
+  } else if(command == "DECR") {
+    if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'incr' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+    std::string res = data_store->incr(key->get_str(), -1);
+    if(res.empty()) {
+      return std::make_unique<Error>("no value at given key");
+    } else if(res == "error") {
+      return std::make_unique<Error>("value at given key is not an integer");
+    } else {
+      return std::make_unique<Integer>(std::stoi(res));
+    }
+  } else if(command == "INCRBY") {
+    if(num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'incrby' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+    BulkString *add = dynamic_cast<BulkString*>(args[2].get());
+    int add_int;
+    try {
+      add_int = std::stoi(add->get_str());
+    } catch (...) {
+      return std::make_unique<Error>("increment must be an integer");
+    }
+    std::string res = data_store->incr(key->get_str(), add_int);
+    if(res.empty()) {
+      return std::make_unique<Error>("no value at given key");
+    } else if(res == "error") {
+      return std::make_unique<Error>("value at given key is not an integer");
+    } else {
+      return std::make_unique<Integer>(std::stoi(res));
+    }
+  } else if(command == "DECRBY") {
+    if(num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'decrby' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+    BulkString *add = dynamic_cast<BulkString*>(args[2].get());
+    int add_int;
+    try {
+      add_int = std::stoi(add->get_str());
+    } catch (...) {
+      return std::make_unique<Error>("increment must be an integer");
+    }
+    std::string res = data_store->incr(key->get_str(), -add_int);
+    if(res.empty()) {
+      return std::make_unique<Error>("no value at given key");
+    } else if(res == "error") {
+      return std::make_unique<Error>("value at given key is not an integer");
+    } else {
+      return std::make_unique<Integer>(std::stoi(res));
+    }    
   } else {
     return std::make_unique<Error>(std::string("unrecognized command " + command));
   }
+  
 }
 
 RedisEngine::RedisEngine() {
