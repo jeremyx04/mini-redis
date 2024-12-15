@@ -13,7 +13,7 @@ endif()
 
 add_executable(redis_tests redis.test.cpp)
 
-target_link_libraries(redis_tests PRIVATE Catch2::Catch2WithMain resp_impl store_impl redis_impl)
+target_link_libraries(redis_tests PRIVATE Catch2::Catch2WithMain linkedlist_impl resp_impl store_impl redis_impl)
 
 include(Catch)  
 catch_discover_tests(redis_tests)

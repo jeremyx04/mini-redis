@@ -2,6 +2,7 @@
 #define CATCH_CONFIG_MAIN
 
 #include <catch2/catch_all.hpp>
+#include "../src/linkedlist.h"
 #include "../src/redisengine.h"
 #include "../src/resp.h"
 #include <thread>
@@ -108,7 +109,7 @@ TEST_CASE("SET/GET commands work correctly", "[redis]") {
     REQUIRE(dynamic_cast<SimpleString*>(get_response.get())->get_str() == "value");
 }
 
-TEST_CASE("Multithreaded INCR works correctly", "[redis]") {
+TEST_CASE("Multithreaded INCR works", "[redis]") {
     RedisEngine redis = RedisEngine();
 
     const int num_threads = 10; 
@@ -142,6 +143,42 @@ TEST_CASE("Multithreaded INCR works correctly", "[redis]") {
                 std::to_string(key.size()) + "\r\n" + key + "\r\n";
     auto get_response = redis.handle_request(get_request);
     REQUIRE(dynamic_cast<SimpleString*>(get_response.get())->get_str() == "1000");
+}
+
+TEST_CASE("LinkedList works", "[linkedlist]") {
+    LinkedList lst = LinkedList();
+
+    lst.push_back("val_1");
+    REQUIRE(lst.get_size() == 1);
+    REQUIRE(lst.pop_back() == "val_1");
+
+    lst.push_front("val_2");
+    REQUIRE(lst.get_size() == 1);
+    REQUIRE(lst.pop_front() == "val_2");
+
+    lst.push_back("val_3");
+    lst.push_front("val_4");
+    REQUIRE(lst.get_size() == 2);
+    REQUIRE(lst.at(0) == "val_4");
+    REQUIRE(lst.pop_front() == "val_4");
+    REQUIRE(lst.pop_back() == "val_3");
+    REQUIRE(lst.get_size() == 0);
+
+    REQUIRE(lst.pop_front().empty());
+    REQUIRE(lst.pop_back().empty());
+
+    lst.push_back("val_5");
+    lst.push_back("val_6");
+    lst.push_front("val_7");
+    lst.push_front("val_8");
+    REQUIRE(lst.at(1) == "val_7");
+    REQUIRE(lst.get_size() == 4);
+
+    REQUIRE(lst.pop_back() == "val_6");
+    REQUIRE(lst.pop_front() == "val_8");
+    REQUIRE(lst.pop_back() == "val_5");
+    REQUIRE(lst.pop_front() == "val_7");
+    REQUIRE(lst.get_size() == 0);
 }
 
 #endif

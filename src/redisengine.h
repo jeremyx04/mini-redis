@@ -7,7 +7,7 @@
 #include <string>
 
 class RedisEngine {
-  Store* data_store;
+  std::unique_ptr<Store> data_store;
   std::unique_ptr<RType> handle_command(const std::string &command, const std::vector<std::unique_ptr<RType>> &args);
  public:
   RedisEngine();

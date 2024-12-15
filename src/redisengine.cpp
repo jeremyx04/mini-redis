@@ -198,9 +198,8 @@ std::unique_ptr<RType> RedisEngine::handle_command(
   } else {
     return std::make_unique<Error>(std::string("unrecognized command " + command));
   }
-  
 }
 
 RedisEngine::RedisEngine() {
-  data_store = new Store();
+  data_store = std::make_unique<Store>();
 }

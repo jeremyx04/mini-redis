@@ -10,6 +10,7 @@ cmake_install.cmake
 CTestTestfile.cmake
 Makefile
 src/CTestTestfile.cmake
+src/liblinkedlist_impl.a
 src/libredis_impl.a
 src/libresp_impl.a
 src/libserver_impl.a
