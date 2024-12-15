@@ -91,6 +91,15 @@ std::unique_ptr<RType> RedisEngine::handle_command(
       num_deleted += data_store->del(key->get_str());
     }
     return std::make_unique<Integer>(num_deleted);
+  } else if(command == "EXISTS") {
+    if(num_args == 0) return std::make_unique<Error>("no arguments received for 'exists' command");
+    int num_exists = 0;
+    for(int i = 1; i <= num_args; ++i) {
+      BulkString *key = dynamic_cast<BulkString*>(args[i].get());
+      if(!key) return std::make_unique<Error>("missing key");
+      num_exists += (int) data_store->exists(key->get_str());
+    }
+    return std::make_unique<Integer>(num_exists);
   } else if(command == "EXPIRE") {
     if(num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'expire' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
