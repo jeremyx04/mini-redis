@@ -29,13 +29,13 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     BulkString* message = dynamic_cast<BulkString*>(args[1].get());
     if(!message) return std::make_unique<Error>("missing message");
 
-    return std::make_unique<SimpleString>(message->get_str());
+    return std::make_unique<BulkString>(message->get_str());
   } else if(command == "ECHO") {
     if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'echo' command");
     BulkString* message = dynamic_cast<BulkString*>(args[1].get());
     if(!message) return std::make_unique<Error>("missing message");
 
-    return std::make_unique<SimpleString>(message->get_str());
+    return std::make_unique<BulkString>(message->get_str());
   } else if(command == "SET") {
     if(num_args < 2) return std::make_unique<Error>("wrong number of arguments for 'set' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get()), *val = dynamic_cast<BulkString*>(args[2].get());
@@ -73,7 +73,7 @@ std::unique_ptr<RType> RedisEngine::handle_command(
         return std::make_unique<Error>("invalid config for 'set' command");
       }
     }
-    return std::make_unique<SimpleString>("OK");
+    return std::make_unique<BulkString>("OK");
   } else if(command == "GET") {
     if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'get' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
@@ -84,7 +84,7 @@ std::unique_ptr<RType> RedisEngine::handle_command(
 
     std::string val = data_store->get(key->get_str());
     if(val.empty()) return std::make_unique<Error>("1");
-    return std::make_unique<SimpleString>(val);
+    return std::make_unique<BulkString>(val);
   } else if(command == "DEL") {
     if(num_args == 0) return std::make_unique<Error>("no arguments received for 'del' command");
     int num_deleted = 0;
@@ -244,6 +244,63 @@ std::unique_ptr<RType> RedisEngine::handle_command(
       ret = data_store->rpush(key->get_str(), element->get_str());
     }
     return std::make_unique<Integer>(ret);
+  } else if(command == "LPOP") {
+    if(num_args != 1 && num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'lpop' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+
+    int count_int = 1;
+    if(num_args == 2) {
+      BulkString *count = dynamic_cast<BulkString*>(args[2].get());
+      try {
+        count_int = std::stoi(count->get_str());
+      } catch (...) {
+        return std::make_unique<Error>("expected integer count");
+      }
+    }
+    std::vector<std::unique_ptr<RType>> ret;
+    while(count_int-- > 0) {
+      std::string res = data_store->lpop(key->get_str());
+      if(res.empty()) break;
+      ret.push_back(std::make_unique<BulkString>(res));
+    }
+    return ret.size() == 1 ? std::move(ret[0]) : std::make_unique<Array>(ret);
+  } else if(command == "RPOP") {
+    if(num_args != 1 && num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'rpop' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+
+    int count_int = 1;
+    if(num_args == 2) {
+      BulkString *count = dynamic_cast<BulkString*>(args[2].get());
+      try {
+        count_int = std::stoi(count->get_str());
+      } catch (...) {
+        return std::make_unique<Error>("expected integer count");
+      }
+    }
+    std::vector<std::unique_ptr<RType>> ret;
+    while(count_int-- > 0) {
+      std::string res = data_store->rpop(key->get_str());
+      if(res.empty()) break;
+      ret.push_back(std::make_unique<BulkString>(res));
+    }
+    return ret.size() == 1 ? std::move(ret[0]) : std::make_unique<Array>(ret);
+  } else if(command == "LINDEX") {
+    if(num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'lindex' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+
+    int index_int;
+    BulkString *index = dynamic_cast<BulkString*>(args[2].get());
+    try {
+      index_int = std::stoi(index->get_str());
+    } catch (...) {
+      return std::make_unique<Error>("expected integer index");
+    }
+    std::string res = data_store->lindex(key->get_str(),index_int);
+    if(res.empty()) return std::make_unique<Error>("invalid index");
+    return std::make_unique<BulkString>(res);
   } else {
     return std::make_unique<Error>(std::string("unrecognized command " + command));
   }

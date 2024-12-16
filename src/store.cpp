@@ -143,3 +143,49 @@ size_t Store::rpush(const std::string &key, const std::string &element) {
   lst.push_back(element);
   return lst.get_size();
 }
+
+std::string Store::lpop(const std::string &key) {
+  std::unique_lock<std::shared_mutex> lock(data_mutex);
+  auto it = data.find(key);
+  if(it == data.end()) return {};
+  Value &val = it->second;
+  if(val.expiry_epoch <= std::time(nullptr)) {
+    data.erase(key);
+    return 0;
+  } 
+  LinkedList &lst = std::get<LinkedList>(val.val);
+  return lst.pop_front();
+}
+
+std::string Store::rpop(const std::string &key) {
+  std::unique_lock<std::shared_mutex> lock(data_mutex);
+  auto it = data.find(key);
+  if(it == data.end()) return {};
+  Value &val = it->second;
+  if(val.expiry_epoch <= std::time(nullptr)) {
+    data.erase(key);
+    return 0;
+  } 
+  LinkedList &lst = std::get<LinkedList>(val.val);
+  return lst.pop_back();
+}
+
+std::string Store::lindex(const std::string &key, int idx) {
+  bool remove_flag = false;
+  std::string ret;
+  {
+    std::shared_lock<std::shared_mutex> lock(data_mutex);
+    auto it = data.find(key);
+    if(it == data.end()) return ret;
+    Value &val = it->second;
+    if(val.expiry_epoch <= std::time(nullptr)) {
+      remove_flag = true;
+    }
+    LinkedList &lst = std::get<LinkedList>(val.val);
+    ret = lst.at(idx);
+  }
+  if(remove_flag) {
+    del(key);
+  }
+  return ret;
+}

@@ -48,6 +48,13 @@ class Store {
   // Push element at tail of list stored at key and
   // returns length of the list after insertion
   size_t rpush(const std::string &key, const std::string &element);
+  // Removes and returns the first element of the list stored at key
+  std::string lpop(const std::string &key);
+  // Removes and returns the last element of the list stored at key
+  std::string rpop(const std::string &key);
+  // Returns value at given index of the list stored at key
+  std::string lindex(const std::string &key, int idx);
+
 };
 
 #endif

@@ -102,11 +102,35 @@ TEST_CASE("SET/GET commands work correctly", "[redis]") {
 
     std::string set_request = "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n";
     auto set_response = redis.handle_request(set_request);
-    REQUIRE(dynamic_cast<SimpleString*>(set_response.get())->get_str() == "OK");
+    REQUIRE(dynamic_cast<BulkString*>(set_response.get())->get_str() == "OK");
 
     std::string get_request = "*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n";
     auto get_response = redis.handle_request(get_request);
-    REQUIRE(dynamic_cast<SimpleString*>(get_response.get())->get_str() == "value");
+    REQUIRE(dynamic_cast<BulkString*>(get_response.get())->get_str() == "value");
+}
+
+TEST_CASE("LPUSH/RPUSH/LPOP/RPOP commands work correctly", "[redis]") {
+    RedisEngine redis = RedisEngine();
+
+    std::string lpush_request = "*3\r\n$5\r\nLPUSH\r\n$4\r\nlist\r\n$6\r\nvalue1\r\n";
+    auto lpush_response = redis.handle_request(lpush_request);
+    REQUIRE(dynamic_cast<Integer*>(lpush_response.get())->get_val() == 1);
+
+    lpush_request = "*3\r\n$5\r\nLPUSH\r\n$4\r\nlist\r\n$6\r\nvalue2\r\n";
+    lpush_response = redis.handle_request(lpush_request);
+    REQUIRE(dynamic_cast<Integer*>(lpush_response.get())->get_val() == 2);
+
+    std::string rpush_request = "*3\r\n$5\r\nRPUSH\r\n$4\r\nlist\r\n$6\r\nvalue3\r\n";
+    auto rpush_response = redis.handle_request(rpush_request);
+    REQUIRE(dynamic_cast<Integer*>(rpush_response.get())->get_val() == 3);
+
+    std::string lpop_request = "*2\r\n$4\r\nLPOP\r\n$4\r\nlist\r\n";
+    auto lpop_response = redis.handle_request(lpop_request);
+    REQUIRE(dynamic_cast<BulkString*>(lpop_response.get())->get_str() == "value2");
+
+    std::string rpop_request = "*3\r\n$4\r\nRPOP\r\n$4\r\nlist\r\n$1\r\n2\r\n";
+    auto rpop_response = redis.handle_request(rpop_request);
+    REQUIRE(dynamic_cast<Array*>(rpop_response.get())->serialize() == "*2\r\n$6\r\nvalue3\r\n$6\r\nvalue1\r\n");
 }
 
 TEST_CASE("Multithreaded INCR works", "[redis]") {
@@ -120,7 +144,7 @@ TEST_CASE("Multithreaded INCR works", "[redis]") {
                 std::to_string(key.size()) + "\r\n" + key +
                 "\r\n$1" + "\r\n" + "0" + "\r\n";
     auto init_response = redis.handle_request(init_request);
-    REQUIRE(dynamic_cast<SimpleString*>(init_response.get())->get_str() == "OK");
+    REQUIRE(dynamic_cast<BulkString*>(init_response.get())->get_str() == "OK");
 
     auto thread_function = [&](int thread_id) {
         for (int i = 0; i < num_operations; ++i) {
@@ -142,7 +166,7 @@ TEST_CASE("Multithreaded INCR works", "[redis]") {
     std::string get_request = "*3\r\n$3\r\nGET\r\n$" +
                 std::to_string(key.size()) + "\r\n" + key + "\r\n";
     auto get_response = redis.handle_request(get_request);
-    REQUIRE(dynamic_cast<SimpleString*>(get_response.get())->get_str() == "1000");
+    REQUIRE(dynamic_cast<BulkString*>(get_response.get())->get_str() == "1000");
 }
 
 TEST_CASE("LinkedList works", "[linkedlist]") {
