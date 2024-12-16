@@ -8,7 +8,7 @@ std::unique_ptr<RType> RedisEngine::handle_request(const std::string &req) {
   Array* arr = dynamic_cast<Array*>(resp.get());
   if(!arr) return std::make_unique<Error>("non-array request received");
 
-  const std::vector<std::unique_ptr<RType>>& lst = arr->get_lst();
+  const std::vector<std::unique_ptr<RType>> &lst = arr->get_lst();
   if(lst.empty()) return std::make_unique<Error>("empty request received");
 
   BulkString* command = dynamic_cast<BulkString*>(lst[0].get());
@@ -79,6 +79,9 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
     if(!key) return std::make_unique<Error>("missing key");
     
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::LIST) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+
     std::string val = data_store->get(key->get_str());
     if(val.empty()) return std::make_unique<Error>("1");
     return std::make_unique<SimpleString>(val);
@@ -137,6 +140,10 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'incr' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
     if(!key) return std::make_unique<Error>("missing key");
+
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::LIST) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+
     std::string res = data_store->incr(key->get_str(), 1);
     if(res.empty()) {
       return std::make_unique<Error>("no value at given key");
@@ -149,6 +156,10 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'incr' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
     if(!key) return std::make_unique<Error>("missing key");
+
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::LIST) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+    
     std::string res = data_store->incr(key->get_str(), -1);
     if(res.empty()) {
       return std::make_unique<Error>("no value at given key");
@@ -161,6 +172,10 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     if(num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'incrby' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
     if(!key) return std::make_unique<Error>("missing key");
+
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::LIST) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+    
     BulkString *add = dynamic_cast<BulkString*>(args[2].get());
     int add_int;
     try {
@@ -180,6 +195,10 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     if(num_args != 2) return std::make_unique<Error>("wrong number of arguments for 'decrby' command");
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
     if(!key) return std::make_unique<Error>("missing key");
+
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::LIST) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+    
     BulkString *add = dynamic_cast<BulkString*>(args[2].get());
     int add_int;
     try {
@@ -195,6 +214,36 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     } else {
       return std::make_unique<Integer>(std::stoi(res));
     }    
+  } else if(command == "LPUSH") {
+    if(num_args < 2) return std::make_unique<Error>("too few arguments for 'lpush' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+    
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::STRING) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+    
+    int ret = 0;
+    for(int i = 2; i <= num_args; ++i) {
+      BulkString *element = dynamic_cast<BulkString*>(args[i].get());
+      if(!element) return std::make_unique<Error>("missing element");
+      ret = data_store->lpush(key->get_str(), element->get_str());
+    }
+    return std::make_unique<Integer>(ret);
+  } else if(command == "RPUSH") {
+    if(num_args < 2) return std::make_unique<Error>("too few arguments for 'rpush' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+    
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::STRING) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+    
+    int ret = 0;
+    for(int i = 2; i <= num_args; ++i) {
+      BulkString *element = dynamic_cast<BulkString*>(args[i].get());
+      if(!element) return std::make_unique<Error>("missing element");
+      ret = data_store->rpush(key->get_str(), element->get_str());
+    }
+    return std::make_unique<Integer>(ret);
   } else {
     return std::make_unique<Error>(std::string("unrecognized command " + command));
   }

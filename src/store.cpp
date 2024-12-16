@@ -35,7 +35,7 @@ std::string Store::get(const std::string &key) {
     if(it->second.expiry_epoch <= std::time(nullptr)) {
       remove_flag = true;
     } else {
-      ret = it->second.val;
+      ret = std::get<std::string>(it->second.val);
     }
   }
   if(remove_flag) {
@@ -96,10 +96,50 @@ std::string Store::incr(const std::string &key, const int add) {
   }
   int val_int;
   try {
-    val_int = std::stoi(val.val);
+    val_int = std::stoi(std::get<std::string>(val.val));
   } catch (...) {
     return "error";
   }
   val.val = std::to_string(val_int + add);
-  return val.val;
+  return std::get<std::string>(val.val);
+}
+
+ValueType Store::get_type(const std::string &key) {
+  std::shared_lock<std::shared_mutex> lock(data_mutex);
+  auto it = data.find(key);
+  if(it == data.end()) {
+    return ValueType::EMPTY;
+  }
+  auto &val = it->second.val;
+  return val.index() == 0 ? ValueType::STRING : ValueType::LIST;
+}
+
+size_t Store::lpush(const std::string &key, const std::string &element) {
+  std::unique_lock<std::shared_mutex> lock(data_mutex);
+  auto it = data.find(key);
+  Value &val = (it == data.end()) 
+                  ? data[key] = {LinkedList(), std::numeric_limits<std::time_t>::max()}
+                  : it->second;
+  if(val.expiry_epoch <= std::time(nullptr)) {
+    data.erase(key);
+    return 0;
+  } 
+  LinkedList &lst = std::get<LinkedList>(val.val);
+  lst.push_front(element);
+  return lst.get_size();
+}
+
+size_t Store::rpush(const std::string &key, const std::string &element) {
+  std::unique_lock<std::shared_mutex> lock(data_mutex);
+  auto it = data.find(key);
+  Value &val = (it == data.end()) 
+                  ? data[key] = {LinkedList(), std::numeric_limits<std::time_t>::max()}
+                  : it->second;
+  if(val.expiry_epoch <= std::time(nullptr)) {
+    data.erase(key);
+    return 0;
+  } 
+  LinkedList &lst = std::get<LinkedList>(val.val);
+  lst.push_back(element);
+  return lst.get_size();
 }

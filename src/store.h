@@ -1,12 +1,20 @@
 #ifndef STORE_H
 #define STORE_H
 
+#include "linkedlist.h"
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
+#include <variant>
+
+enum class ValueType {
+  STRING,
+  LIST,
+  EMPTY,
+};
 
 struct Value {
-  std::string val;
+  std::variant<std::string, LinkedList> val;
   std::time_t expiry_epoch;
 };
 
@@ -29,6 +37,17 @@ class Store {
   // Increment the value at key by add, returns the result as a base 10 integer
   // or "error" if the value is not an integer
   std::string incr(const std::string &key, int add);
+  // Returns the type of the value at key
+  ValueType get_type(const std::string &key);
+
+  // *List functions assume that value stored at key is not a string*
+
+  // Push element at head of list stored at key and
+  // returns length of the list after insertion
+  size_t lpush(const std::string &key, const std::string &element);
+  // Push element at tail of list stored at key and
+  // returns length of the list after insertion
+  size_t rpush(const std::string &key, const std::string &element);
 };
 
 #endif
