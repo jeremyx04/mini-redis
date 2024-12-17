@@ -21,10 +21,10 @@ class LinkedList {
   ~LinkedList();
   void push_front(const std::string &val);
   void push_back(const std::string &val);
-  std::string at(int idx);
+  std::string at(int idx) const;
   std::string pop_front();
   std::string pop_back();
-  size_t get_size() const;
+  size_t size() const;
 };
 
 #endif

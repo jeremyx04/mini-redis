@@ -20,6 +20,7 @@ tests/redis_tests
 
 # Redis 
 dump.rdb
+state.txt
 
 # VSCode
 .vscode/

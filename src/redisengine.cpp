@@ -1,6 +1,8 @@
 #include "redisengine.h"
 #include <ctime>
-#include <stdexcept>
+#include <fstream>
+#include <iostream>
+#include <stdexcept>           
 
 std::unique_ptr<RType> RedisEngine::handle_request(const std::string &req) {
   std::unique_ptr<RType> resp = RType::deserialize(req);
@@ -16,6 +18,36 @@ std::unique_ptr<RType> RedisEngine::handle_request(const std::string &req) {
   std::string command_string = command->get_str();
   std::transform(command_string.begin(), command_string.end(), command_string.begin(), ::toupper);
   return handle_command(command_string, lst);
+}
+
+bool RedisEngine::load_data() {
+  std::ifstream file("state.txt");
+  if (!file.is_open()) {
+    return false;
+  }
+  std::string key, type;
+  std::string value;
+  std::time_t expiry_epoch;
+  try {
+      while (file >> key >> type) {
+          if (type == "STRING") {
+              file >> value;
+              data_store->set(key, value);
+          } else if (type == "LIST") {
+              int list_size;
+              file >> list_size;
+              for (int i = 0; i < list_size; ++i) {
+                  file >> value;
+                  data_store->rpush(key, value);
+              }
+          }
+          file >> expiry_epoch;
+          data_store->set_expire(key, expiry_epoch);
+      }
+  } catch (...) {
+      return false;
+  }
+  return true;
 }
 
 std::unique_ptr<RType> RedisEngine::handle_command(
@@ -301,6 +333,33 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     std::string res = data_store->lindex(key->get_str(),index_int);
     if(res.empty()) return std::make_unique<Error>("invalid index");
     return std::make_unique<BulkString>(res);
+  } else if(command == "SAVE") {
+    if(num_args != 0) return std::make_unique<Error>("expected no arguments for 'save' command");
+    std::unordered_map<std::string, Value> data = data_store->get_data();
+    std::ofstream file("state.txt");
+    if(!file.is_open()) return std::make_unique<Error>("file not open");
+
+    try {
+      for(const auto &p : data) {
+        const std::string &key = p.first;
+        const Value &value = p.second;
+        file << key << " ";
+        if (std::holds_alternative<std::string>(value.val)) {
+          file << "STRING " << std::get<std::string>(value.val) << " ";
+        } else if (std::holds_alternative<LinkedList>(value.val)) {
+          const LinkedList &lst = std::get<LinkedList>(value.val);
+          int sz = lst.size();
+          file << "LIST " << sz << " ";
+          for (int i = 0; i < sz; i++) {
+            file << lst.at(i) << " ";
+          }
+        }
+        file << value.expiry_epoch << "\n";
+      }
+    } catch (...) {
+      return std::make_unique<Error>("failed to write to file");
+    } 
+    return std::make_unique<SimpleString>("OK");
   } else {
     return std::make_unique<Error>(std::string("unrecognized command " + command));
   }
@@ -308,4 +367,9 @@ std::unique_ptr<RType> RedisEngine::handle_command(
 
 RedisEngine::RedisEngine() {
   data_store = std::make_unique<Store>();
+  if(load_data()) {
+    std::cout << "loaded data from state\n";
+  } else {
+    std::cerr << "failed to load data from state\n";
+  }
 }

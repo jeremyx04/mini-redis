@@ -173,20 +173,20 @@ TEST_CASE("LinkedList works", "[linkedlist]") {
     LinkedList lst = LinkedList();
 
     lst.push_back("val_1");
-    REQUIRE(lst.get_size() == 1);
+    REQUIRE(lst.size() == 1);
     REQUIRE(lst.pop_back() == "val_1");
 
     lst.push_front("val_2");
-    REQUIRE(lst.get_size() == 1);
+    REQUIRE(lst.size() == 1);
     REQUIRE(lst.pop_front() == "val_2");
 
     lst.push_back("val_3");
     lst.push_front("val_4");
-    REQUIRE(lst.get_size() == 2);
+    REQUIRE(lst.size() == 2);
     REQUIRE(lst.at(0) == "val_4");
     REQUIRE(lst.pop_front() == "val_4");
     REQUIRE(lst.pop_back() == "val_3");
-    REQUIRE(lst.get_size() == 0);
+    REQUIRE(lst.size() == 0);
 
     REQUIRE(lst.pop_front().empty());
     REQUIRE(lst.pop_back().empty());
@@ -196,13 +196,13 @@ TEST_CASE("LinkedList works", "[linkedlist]") {
     lst.push_front("val_7");
     lst.push_front("val_8");
     REQUIRE(lst.at(1) == "val_7");
-    REQUIRE(lst.get_size() == 4);
+    REQUIRE(lst.size() == 4);
 
     REQUIRE(lst.pop_back() == "val_6");
     REQUIRE(lst.pop_front() == "val_8");
     REQUIRE(lst.pop_back() == "val_5");
     REQUIRE(lst.pop_front() == "val_7");
-    REQUIRE(lst.get_size() == 0);
+    REQUIRE(lst.size() == 0);
 }
 
 #endif

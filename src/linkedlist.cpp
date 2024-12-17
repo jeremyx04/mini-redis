@@ -34,7 +34,7 @@ void LinkedList::push_back(const std::string &val) {
   ++sz;
 }
 
-std::string LinkedList::at(int idx) {
+std::string LinkedList::at(int idx) const {
   if (idx < 0 || idx >= sz) return {};
   Node* cur = head;
   while(idx--) {
@@ -77,6 +77,6 @@ std::string LinkedList::pop_back() {
   return ret;
 }
 
-size_t LinkedList::get_size() const {
+size_t LinkedList::size() const {
   return sz;
 }

@@ -12,6 +12,7 @@ class RedisEngine {
  public:
   RedisEngine();
   std::unique_ptr<RType> handle_request(const std::string &req);
+  bool load_data();
 };
 
 #endif

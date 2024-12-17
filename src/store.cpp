@@ -126,7 +126,7 @@ size_t Store::lpush(const std::string &key, const std::string &element) {
   } 
   LinkedList &lst = std::get<LinkedList>(val.val);
   lst.push_front(element);
-  return lst.get_size();
+  return lst.size();
 }
 
 size_t Store::rpush(const std::string &key, const std::string &element) {
@@ -141,7 +141,7 @@ size_t Store::rpush(const std::string &key, const std::string &element) {
   } 
   LinkedList &lst = std::get<LinkedList>(val.val);
   lst.push_back(element);
-  return lst.get_size();
+  return lst.size();
 }
 
 std::string Store::lpop(const std::string &key) {

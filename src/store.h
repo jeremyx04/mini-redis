@@ -22,6 +22,7 @@ class Store {
   std::unordered_map<std::string, Value> data;
   std::shared_mutex data_mutex;
  public:
+  std::unordered_map<std::string, Value> get_data() const { return data; }
   // Returns true if specified key exists, false otherwise
   bool exists(const std::string &key);
   // Set key to value

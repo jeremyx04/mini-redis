@@ -58,7 +58,6 @@ void Server::start() {
   if(listen(server_fd, SOMAXCONN) < 0) {
     throw std::runtime_error("server listen failed");
   }
-  redis = RedisEngine();
   listening = true;
 
   while(listening) {
