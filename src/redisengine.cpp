@@ -281,6 +281,9 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
     if(!key) return std::make_unique<Error>("missing key");
 
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::STRING) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+  
     int count_int = 1;
     if(num_args == 2) {
       BulkString *count = dynamic_cast<BulkString*>(args[2].get());
@@ -302,6 +305,9 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
     if(!key) return std::make_unique<Error>("missing key");
 
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::STRING) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+  
     int count_int = 1;
     if(num_args == 2) {
       BulkString *count = dynamic_cast<BulkString*>(args[2].get());
@@ -323,6 +329,9 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     BulkString *key = dynamic_cast<BulkString*>(args[1].get());
     if(!key) return std::make_unique<Error>("missing key");
 
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::STRING) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+  
     int index_int;
     BulkString *index = dynamic_cast<BulkString*>(args[2].get());
     try {
@@ -333,6 +342,16 @@ std::unique_ptr<RType> RedisEngine::handle_command(
     std::string res = data_store->lindex(key->get_str(),index_int);
     if(res.empty()) return std::make_unique<Error>("invalid index");
     return std::make_unique<BulkString>(res);
+  } else if(command == "LLEN") {
+    if(num_args != 1) return std::make_unique<Error>("wrong number of arguments for 'llen' command");
+    BulkString *key = dynamic_cast<BulkString*>(args[1].get());
+    if(!key) return std::make_unique<Error>("missing key");
+
+    ValueType t = data_store->get_type(key->get_str());
+    if(t == ValueType::STRING) return std::make_unique<Error>("wrong type, operation against a key holding the wrong kind of value");
+  
+    int res = data_store->llen(key->get_str());
+    return std::make_unique<Integer>(res);
   } else if(command == "SAVE") {
     if(num_args != 0) return std::make_unique<Error>("expected no arguments for 'save' command");
     std::unordered_map<std::string, Value> data = data_store->get_data();

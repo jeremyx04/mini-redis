@@ -189,3 +189,23 @@ std::string Store::lindex(const std::string &key, int idx) {
   }
   return ret;
 }
+
+size_t Store::llen(const std::string &key) {
+  bool remove_flag = false;
+  size_t ret = 0;
+  {
+    std::shared_lock<std::shared_mutex> lock(data_mutex);
+    auto it = data.find(key);
+    if(it == data.end()) return ret;
+    Value &val = it->second;
+    if(val.expiry_epoch <= std::time(nullptr)) {
+      remove_flag = true;
+    }
+    LinkedList &lst = std::get<LinkedList>(val.val);
+    ret = lst.size();
+  }
+  if(remove_flag) {
+    del(key);
+  }
+  return ret;
+}

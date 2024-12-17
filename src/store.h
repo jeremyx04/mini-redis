@@ -55,7 +55,8 @@ class Store {
   std::string rpop(const std::string &key);
   // Returns value at given index of the list stored at key
   std::string lindex(const std::string &key, int idx);
-
+  // Returns length of list stored at key
+  size_t llen(const std::string &key);
 };
 
 #endif
