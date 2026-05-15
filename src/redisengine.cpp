@@ -2,7 +2,8 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
-#include <stdexcept>           
+#include <stdexcept>
+#include <sstream>           
 
 std::unique_ptr<RType> RedisEngine::handle_request(const std::string &req) {
   std::unique_ptr<RType> resp = RType::deserialize(req);
@@ -48,6 +49,60 @@ bool RedisEngine::load_data() {
       return false;
   }
   return true;
+}
+
+void RedisEngine::replay_wal() {
+  if (!wal) return;
+
+  std::vector<std::string> entries = wal->read_log();
+  if (entries.empty()) {
+    std::cout << "no WAL entries to replay\n";
+    return;
+  }
+
+  std::cout << "replaying " << entries.size() << " WAL entries\n";
+
+  for (const auto &entry : entries) {
+    std::istringstream iss(entry);
+    std::string operation;
+    iss >> operation;
+
+    if (operation == "SET") {
+      std::string key, value;
+      iss >> key >> value;
+      data_store->set(key, value);
+    } else if (operation == "DEL") {
+      std::string key;
+      iss >> key;
+      data_store->del(key);
+    } else if (operation == "EXPIRE") {
+      std::string key, expiry_str;
+      iss >> key >> expiry_str;
+      std::time_t expiry = std::stol(expiry_str);
+      data_store->set_expire(key, expiry);
+    } else if (operation == "INCR") {
+      std::string key, add_str;
+      iss >> key >> add_str;
+      int add = std::stoi(add_str);
+      data_store->incr(key, add);
+    } else if (operation == "LPUSH") {
+      std::string key, element;
+      iss >> key >> element;
+      data_store->lpush(key, element);
+    } else if (operation == "RPUSH") {
+      std::string key, element;
+      iss >> key >> element;
+      data_store->rpush(key, element);
+    } else if (operation == "LPOP") {
+      std::string key;
+      iss >> key;
+      data_store->lpop(key);
+    } else if (operation == "RPOP") {
+      std::string key;
+      iss >> key;
+      data_store->rpop(key);
+    }
+  }
 }
 
 std::unique_ptr<RType> RedisEngine::handle_command(
@@ -377,7 +432,10 @@ std::unique_ptr<RType> RedisEngine::handle_command(
       }
     } catch (...) {
       return std::make_unique<Error>("failed to write to file");
-    } 
+    }
+    if (wal) {
+      wal->clear();
+    }
     return std::make_unique<SimpleString>("OK");
   } else {
     return std::make_unique<Error>(std::string("unrecognized command " + command));
@@ -385,10 +443,13 @@ std::unique_ptr<RType> RedisEngine::handle_command(
 }
 
 RedisEngine::RedisEngine() {
+  wal = std::make_unique<WAL>("redis.wal");
   data_store = std::make_unique<Store>();
+  data_store->set_wal(wal.get());
   if(load_data()) {
     std::cout << "loaded data from state\n";
   } else {
     std::cerr << "failed to load data from state\n";
   }
+  replay_wal();
 }

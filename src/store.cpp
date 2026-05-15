@@ -21,7 +21,10 @@ bool Store::exists(const std::string &key) {
 }
 
 void Store::set(const std::string &key, const std::string &val) {
-  std::unique_lock<std::shared_mutex> lock(data_mutex); 
+  std::unique_lock<std::shared_mutex> lock(data_mutex);
+  if (wal_ptr) {
+    wal_ptr->log_operation("SET " + key + " " + val);
+  }
   data[key] = { val, std::numeric_limits<std::time_t>::max() };
 }
 
@@ -66,17 +69,23 @@ std::time_t Store::get_timeout(const std::string &key) {
 
 int Store::del(const std::string &key) {
   std::unique_lock<std::shared_mutex> lock(data_mutex);
+  if (wal_ptr) {
+    wal_ptr->log_operation("DEL " + key);
+  }
   return data.erase(key);
 }
 
 int Store::set_expire(const std::string &key, const std::time_t expiry_epoch) {
   if(!exists(key)) return 0;
   std::unique_lock<std::shared_mutex> lock(data_mutex);
+  if (wal_ptr) {
+    wal_ptr->log_operation("EXPIRE " + key + " " + std::to_string(expiry_epoch));
+  }
   auto &val = data.at(key);
   if(expiry_epoch <= std::time(nullptr)) {
     data.erase(key);
     return 0;
-  } 
+  }
   val.expiry_epoch = expiry_epoch;
   return 1;
 }
@@ -88,6 +97,9 @@ std::string Store::incr(const std::string &key, const int add) {
     return val;
   }
   std::unique_lock<std::shared_mutex> lock(data_mutex);
+  if (wal_ptr) {
+    wal_ptr->log_operation("INCR " + key + " " + std::to_string(add));
+  }
   auto &val = data.at(key);
   if(val.expiry_epoch <= std::time(nullptr)) {
     std::string val = std::to_string(add);
@@ -117,13 +129,16 @@ ValueType Store::get_type(const std::string &key) {
 size_t Store::lpush(const std::string &key, const std::string &element) {
   std::unique_lock<std::shared_mutex> lock(data_mutex);
   auto it = data.find(key);
-  Value &val = (it == data.end()) 
+  Value &val = (it == data.end())
                   ? data[key] = {LinkedList(), std::numeric_limits<std::time_t>::max()}
                   : it->second;
   if(val.expiry_epoch <= std::time(nullptr)) {
     data.erase(key);
     return 0;
-  } 
+  }
+  if (wal_ptr) {
+    wal_ptr->log_operation("LPUSH " + key + " " + element);
+  }
   LinkedList &lst = std::get<LinkedList>(val.val);
   lst.push_front(element);
   return lst.size();
@@ -132,13 +147,16 @@ size_t Store::lpush(const std::string &key, const std::string &element) {
 size_t Store::rpush(const std::string &key, const std::string &element) {
   std::unique_lock<std::shared_mutex> lock(data_mutex);
   auto it = data.find(key);
-  Value &val = (it == data.end()) 
+  Value &val = (it == data.end())
                   ? data[key] = {LinkedList(), std::numeric_limits<std::time_t>::max()}
                   : it->second;
   if(val.expiry_epoch <= std::time(nullptr)) {
     data.erase(key);
     return 0;
-  } 
+  }
+  if (wal_ptr) {
+    wal_ptr->log_operation("RPUSH " + key + " " + element);
+  }
   LinkedList &lst = std::get<LinkedList>(val.val);
   lst.push_back(element);
   return lst.size();
@@ -152,7 +170,10 @@ std::string Store::lpop(const std::string &key) {
   if(val.expiry_epoch <= std::time(nullptr)) {
     data.erase(key);
     return 0;
-  } 
+  }
+  if (wal_ptr) {
+    wal_ptr->log_operation("LPOP " + key);
+  }
   LinkedList &lst = std::get<LinkedList>(val.val);
   return lst.pop_front();
 }
@@ -165,7 +186,10 @@ std::string Store::rpop(const std::string &key) {
   if(val.expiry_epoch <= std::time(nullptr)) {
     data.erase(key);
     return 0;
-  } 
+  }
+  if (wal_ptr) {
+    wal_ptr->log_operation("RPOP " + key);
+  }
   LinkedList &lst = std::get<LinkedList>(val.val);
   return lst.pop_back();
 }

@@ -2,6 +2,7 @@
 #define STORE_H
 
 #include "linkedlist.h"
+#include "wal.h"
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
@@ -21,7 +22,9 @@ struct Value {
 class Store {
   std::unordered_map<std::string, Value> data;
   std::shared_mutex data_mutex;
+  WAL* wal_ptr = nullptr;
  public:
+  void set_wal(WAL* wal) { wal_ptr = wal; }
   std::unordered_map<std::string, Value> get_data() const { return data; }
   // Returns true if specified key exists, false otherwise
   bool exists(const std::string &key);
